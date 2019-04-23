@@ -1,0 +1,20 @@
+Lab 1
+
+Honghao Lin, 516030910579, Honghao_lin@sjtu.edu.cn
+
+--- Report ---
+
+Design Decisions
+  In the catalog, I add a class named table, which is a tuple of  File, Name and Primary Key. And I set two HashMaps for the mapping from ID to table and from name to table. In the bufferpool,
+I set a HashMap to simulate the bufferpool(in lab1, I do not consider the eviction policy). And for the Heapfile, I implement a HeapfileIterator to satisfy the use of the HeapFile.iterator() method.
+The rest of the implement I do I think is like the referring docs says.
+ 
+ --------------
+
+I have implemented all of the required parts, but I do not consider some codes that are not required in the lab1.For example, the  eviction policy and some functions that are not used in the lab1.
+
+--------------
+
+About 10-12 hours is spent on this project(include the environment building). And I think for me, the most difficult part in this lab is the implement of the Heapfile and the HeadPage(the Iterator method 
+and the index caculating).
+ 
