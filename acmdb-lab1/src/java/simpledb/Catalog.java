@@ -71,6 +71,16 @@ public class Catalog {
     public void addTable(DbFile file, String name, String pkeyField) {
         // some code goes here
     	
+    	if(nameMap.containsKey(name)) {
+    		idMap.remove(nameMap.get(name).getFile().getId());
+    		nameMap.remove(name);
+    	}
+    	
+    	if(idMap.containsKey(file.getId())) {
+    		nameMap.remove(idMap.get(file.getId()).getName());
+    		idMap.remove(file.getId());
+    	}
+    	
     	Table table = new Table(file, name, pkeyField);
     	idMap.put(file.getId(), table);
     	nameMap.put(name, table);
