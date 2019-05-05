@@ -162,9 +162,11 @@ public class BufferPool {
             		pageMap.remove(pid);
             		pageMap.put(pid, page);
             	}
-            	if(pageMap.size() >= numPages) evictPage();
-            		//throw new DbException("");
-            	pageMap.put(pid, page);
+		else {	
+            		if(pageMap.size() >= numPages) evictPage();
+            			//throw new DbException("");
+            		pageMap.put(pid, page);
+		}
             }
         } 
     	catch (DbException | IOException | TransactionAbortedException e) {}
@@ -196,9 +198,11 @@ public class BufferPool {
             		pageMap.remove(pid);
             		pageMap.put(pid, page);
             	}
-            	if(pageMap.size() >= numPages) evictPage();
-            		//throw new DbException("");
-            	pageMap.put(pid, page);
+		else{
+            		if(pageMap.size() >= numPages) evictPage();
+            			//throw new DbException("");
+            		pageMap.put(pid, page);
+		}
             }
         } catch (DbException | IOException | TransactionAbortedException e) {}
     }
