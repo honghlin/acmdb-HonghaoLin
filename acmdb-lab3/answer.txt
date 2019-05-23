@@ -1,0 +1,21 @@
+Lab 3
+
+Honghao Lin, 516030910579, Honghao_lin@sjtu.edu.cn
+
+--- Report ---
+
+Design Decisions
+
+In the Aggregator, I have used several maps for convenience. 
+
+ --------------
+
+I have implemented all of the required parts, but I do not consider some codes that are not required in the lab3. For example, I think some codes in the Headpage like something about the dirty id 
+may have some problems
+
+--------------
+
+I finished it in about 3-4days(including reading the textbooks and the documents). And I think for me, the most difficult parts in this lab is the some details about Aggregator and Section 2.3.And one 
+confusing thing is that in the DeleteTuple() in the Headpage, if I delete the code "tuples[idx] = null;", I will be failed in the Delete Systemtests.But I think actually the more important thing is the Header, 
+not it.
+ 
