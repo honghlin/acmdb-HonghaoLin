@@ -46,7 +46,7 @@ public class BufferPool {
         // some code goes here
         this.numPages = numPages;
         //this.numPages = 1000000;
-        this.pageMap = new ConcurrentHashMap<>();
+        this.pageMap = new LinkedHashMap<>();
         //this.pages = new Page[numPages];
 
     }
@@ -90,30 +90,11 @@ public class BufferPool {
 
         long tle = 100;
         long begin = System.currentTimeMillis();
-        boolean f = true;
 
         while(true) {
-
-            if(lockManager.apply(tid, pid, perm)) {
-            	//lockManager.removeEdge(tid, pid);
-            	break;
-            }
-            	
-            if(f) lockManager.addEdge(tid, pid, perm);
-            f = false;
-
-            if(lockManager.detect(tid, pid)) {
-                lockManager.removeEdge(tid, pid);
-                throw new TransactionAbortedException();
-            }
-
-            if (System.currentTimeMillis() - begin > tle) {
-                lockManager.removeEdge(tid, pid);
-                throw new TransactionAbortedException();
-            }
-
+            if(lockManager.apply(tid, pid, perm)) break;
+            if (System.currentTimeMillis() - begin > tle) throw new TransactionAbortedException();
         }
-
 
         if (pageMap.containsKey(pid)) {
             Page page = pageMap.get(pid);
@@ -123,8 +104,7 @@ public class BufferPool {
 
         }
         Page page = Database.getCatalog().getDatabaseFile(pid.getTableId()).readPage(pid);
-        if(pageMap.size() >= numPages) evictPage();
-        //throw new DbException("");
+        if(pageMap.size() >= numPages) evictPage(); //throw new DbException("");
         pageMap.put(pid, page);
         return page;
     }
@@ -181,7 +161,7 @@ public class BufferPool {
         else {
             //if(!lockManager.tidMap.containsKey(tid)) return;
             Map<PageId, Permissions> map = lockManager.tidMap.get(tid);
-            for (PageId pid : map.keySet()) discardPage(pid);
+            if(map != null) for (PageId pid : map.keySet()) discardPage(pid);
         }
 
         lockManager.transactionComplete(tid);
@@ -401,24 +381,52 @@ public class BufferPool {
 
         }
 
+        //        private void addEdge(TransactionId tid, PageId pid, Permissions perm) {
+//
+//        	//assert !pidMap.get(pid).containsKey(tid);
+//
+//            if (depMap.containsKey(tid)){
+//                Map<PageId, Permissions> e_map = depMap.get(tid);
+//                e_map.put(pid, perm);
+//            }
+//            else {
+//                Map<PageId, Permissions> e_map = new ConcurrentHashMap<>();
+//                e_map.put(pid, perm);
+//                depMap.put(tid, e_map);
+//            }
+//
+//        }
+//
+//        private void removeEdge(TransactionId tid, PageId pid) {
+//
+//            if (depMap.containsKey(tid)){
+//                Map<PageId, Permissions> e_map = depMap.get(tid);
+//                if (e_map.containsKey(pid)) e_map.remove(pid);
+//            }
+//
+//        }
 
-        private boolean apply(TransactionId tid, PageId pid, Permissions perm) {
+//        private boolean detect(TransactionId tid, PageId pid) {
+//
+//        }
+
+
+        private synchronized boolean apply(TransactionId tid, PageId pid, Permissions perm) {
 
 
             assert perm == Permissions.READ_WRITE || perm == Permissions.READ_ONLY;
 
-            //if(1 != 0)return false;	
             try {
                 lock.acquire();
             }
             catch (Exception e) {}
 
             if (!pidMap.containsKey(pid) || pidMap.get(pid).size() == 0){
-                synchronized (this){
-                    addLock(tid, pid, perm);
-                    lock.release();
-                    return true;
-                }
+
+                addLock(tid, pid, perm);
+                lock.release();
+                return true;
+
             }
             else {
                 Map<TransactionId, Permissions> map = pidMap.get(pid);
@@ -439,12 +447,11 @@ public class BufferPool {
                     }
                     else {
                         if(map.containsKey(tid)) {
-                            synchronized (this){
-                                addLock(tid, pid, perm);
-                                assert map.size() == 1;
-                                lock.release();
-                                return true;
-                            }
+
+                            addLock(tid, pid, perm);
+                            assert map.size() == 1;
+                            lock.release();
+                            return true;
                         }
                         lock.release();
                         return false;
@@ -454,41 +461,39 @@ public class BufferPool {
                 else {
                 	
                 	if(pidMap.get(pid).containsKey(tid)) {
-                		synchronized (this){
+
+                        //addLock(tid, pid, perm);
+                        lock.release();
+                        return true;
+
+                	}
+                	
+                    if (map.size() > 1){
+
+                        addLock(tid, pid, perm);
+                        lock.release();
+                        return true;
+                    }
+                    else {
+                        if(map.containsKey(tid)) {
+
                             //addLock(tid, pid, perm);
                             lock.release();
                             return true;
                         }
-                	}
-                	
-                    if (map.size() > 1){
-                        synchronized (this){
-                            addLock(tid, pid, perm);
-                            lock.release();
-                            return true;
-                        }
-                    }
-                    else {
-                        if(map.containsKey(tid)) {
-                            synchronized (this){
-                                //addLock(tid, pid, perm);
-                                lock.release();
-                                return true;
-                            }
-                        }
                         Permissions tperm = null;
                         for (Permissions p : map.values()) tperm = p;
+
                         assert tperm == Permissions.READ_WRITE || perm == Permissions.READ_ONLY;
                         if(tperm == Permissions.READ_WRITE) {
                             lock.release();
                             return false;
                         }
                         else {
-                            synchronized (this){
-                                addLock(tid, pid, perm);
-                                lock.release();
-                                return true;
-                            }
+
+                            addLock(tid, pid, perm);
+                            lock.release();
+                            return true;
                         }
                     }
                 }
@@ -496,12 +501,6 @@ public class BufferPool {
  
             
         }
-
-
-        
-            
-
-       
 
         private void removeLock(TransactionId tid, PageId pid) {
 
@@ -553,56 +552,6 @@ public class BufferPool {
             lock.release();
         }
 
-        private void addEdge(TransactionId tid, PageId pid, Permissions perm) {
-        	
-        	//assert !pidMap.get(pid).containsKey(tid);
-        	
-            if (depMap.containsKey(tid)){
-                Map<PageId, Permissions> e_map = depMap.get(tid);
-                e_map.put(pid, perm);
-            }
-            else {
-                Map<PageId, Permissions> e_map = new ConcurrentHashMap<>();
-                e_map.put(pid, perm);
-                depMap.put(tid, e_map);
-            }
-
-        }
-
-        private void removeEdge(TransactionId tid, PageId pid) {
-
-            if (depMap.containsKey(tid)){
-                Map<PageId, Permissions> e_map = depMap.get(tid);
-                if (e_map.containsKey(pid)) e_map.remove(pid);
-            }
-
-        }
-
-        private boolean detect(TransactionId tid, PageId pid) {
-
-            LinkedList<PageId> q = new LinkedList<>();
-            q.offer(pid);
-            Map<PageId, Integer> pmap = new HashMap();
-            //if(pidMap.get(pid).containsKey(tid)){
-            	//int a = 1;
-            	//while(a == 1) {}
-            //}
-            while(!q.isEmpty()) {
-                PageId e_pid = q.poll();
-                pmap.put(e_pid, 1);
-                for (TransactionId e_tid : pidMap.get(e_pid).keySet()) {
-                	//if(e_tid.equals(tid) && e_pid.equals(pid)) continue;
-                    if (e_tid.equals(tid)) return true;
-                    if (depMap.containsKey(e_tid)) {
-                        for (PageId tpid : depMap.get(e_tid).keySet()) 
-                        	//if(!pmap.containsKey(tpid))
-                        		q.offer(tpid);
-                    }
-                }
-            }
-            //assert 1 == 0;
-            return false;
-        }
 
     }
 
