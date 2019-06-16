@@ -83,7 +83,7 @@ public class BufferPool {
      * @param pid the ID of the requested page
      * @param perm the requested permissions on the page
      */
-    public  Page getPage(TransactionId tid, PageId pid, Permissions perm)
+    public  synchronized Page getPage(TransactionId tid, PageId pid, Permissions perm)
             throws TransactionAbortedException, DbException {
         // some code goes here
         //return null;
@@ -95,7 +95,7 @@ public class BufferPool {
         while(true) {
 
             if(lockManager.apply(tid, pid, perm)) {
-            	lockManager.removeEdge(tid, pid);
+            	//lockManager.removeEdge(tid, pid);
             	break;
             }
             	
@@ -222,7 +222,7 @@ public class BufferPool {
                 pageMap.put(pid, page);
             }
         }
-        catch (DbException | IOException | TransactionAbortedException e) {}
+        catch (DbException | IOException e) {}
     }
 
     /**
@@ -244,18 +244,21 @@ public class BufferPool {
         // not necessary for lab1
         try {
             ArrayList<Page> pages = Database.getCatalog().getDatabaseFile(t.getRecordId().getPageId().getTableId()).deleteTuple(tid, t);
+            for (Page page: pages) page.markDirty(true, tid);
             for (Page page: pages) {
-                page.markDirty(true, tid);
                 PageId pid = page.getId();
                 if (pageMap.containsKey(pid)) {
                     pageMap.remove(pid);
                     pageMap.put(pid, page);
                 }
-                if(pageMap.size() >= numPages) evictPage();
+                else if(pageMap.size() >= numPages) {
+                    evictPage();
+                    pageMap.put(pid, page);
+                }
                 //throw new DbException("");
-                pageMap.put(pid, page);
+
             }
-        } catch (DbException | IOException | TransactionAbortedException e) {}
+        } catch (DbException | IOException e) {}
     }
 
     /**
