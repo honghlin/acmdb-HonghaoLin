@@ -88,7 +88,7 @@ public class Insert extends Operator {
             try {
             	Database.getBufferPool().insertTuple(t, tableId, tuple);
             } 
-            catch(Exception e) {}
+            catch(IOException e) {}
             ++v;
         }
         Tuple t = new Tuple(td);

@@ -3,7 +3,6 @@ package simpledb;
 import java.io.*;
 
 import java.util.*;
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -38,7 +37,7 @@ public class BufferPool {
     private Map<PageId, Page> pageMap;
     //private Page[] pages;
     private LockManager lockManager = new LockManager();
-
+    private Random R = new Random();
 
 
 
@@ -88,12 +87,18 @@ public class BufferPool {
         // some code goes here
         //return null;
 
-        long tle = 100;
+        long tle = 100 + R.nextInt(100);
         long begin = System.currentTimeMillis();
 
         while(true) {
             if(lockManager.apply(tid, pid, perm)) break;
             if (System.currentTimeMillis() - begin > tle) throw new TransactionAbortedException();
+
+            try {
+                wait(tle);
+            }
+            catch (Exception e) {}
+
         }
 
         if (pageMap.containsKey(pid)) {
@@ -334,14 +339,13 @@ public class BufferPool {
 //
 
     }
-    
+
 
     private class LockManager {
 
         private Map<TransactionId, Map<PageId, Permissions>> tidMap;
         private Map<TransactionId, Map<PageId, Permissions>> depMap;
         private Map<PageId, Map<TransactionId, Permissions>> pidMap;
-        private Semaphore lock = new Semaphore(1);
 
         LockManager() {
             tidMap = new ConcurrentHashMap<>();
@@ -416,15 +420,9 @@ public class BufferPool {
 
             assert perm == Permissions.READ_WRITE || perm == Permissions.READ_ONLY;
 
-            try {
-                lock.acquire();
-            }
-            catch (Exception e) {}
-
             if (!pidMap.containsKey(pid) || pidMap.get(pid).size() == 0){
 
                 addLock(tid, pid, perm);
-                lock.release();
                 return true;
 
             }
@@ -432,74 +430,57 @@ public class BufferPool {
                 Map<TransactionId, Permissions> map = pidMap.get(pid);
 
                 if(perm == Permissions.READ_WRITE) {
-                    
+
 //                	if(pidMap.get(pid).containsKey(tid)) {
 //                		synchronized (this){
 //                            addLock(tid, pid, perm);
-//                            lock.release();
 //                            return true;
 //                        }
 //                	}
-                	
-                	if (map.size() > 1){
-                        lock.release();
-                        return false;
-                    }
+
+                	if (map.size() > 1) return false;
                     else {
                         if(map.containsKey(tid)) {
 
                             addLock(tid, pid, perm);
                             assert map.size() == 1;
-                            lock.release();
                             return true;
                         }
-                        lock.release();
                         return false;
                     }
                 }
 
                 else {
-                	
-                	if(pidMap.get(pid).containsKey(tid)) {
 
-                        //addLock(tid, pid, perm);
-                        lock.release();
-                        return true;
+//                	if(pidMap.get(pid).containsKey(tid)) {
+//
+//                        //addLock(tid, pid, perm);
+//                        return true;
+//                	}
 
-                	}
-                	
                     if (map.size() > 1){
 
                         addLock(tid, pid, perm);
-                        lock.release();
                         return true;
                     }
                     else {
-                        if(map.containsKey(tid)) {
-
-                            //addLock(tid, pid, perm);
-                            lock.release();
-                            return true;
-                        }
+                        if(map.containsKey(tid)) return true;
                         Permissions tperm = null;
                         for (Permissions p : map.values()) tperm = p;
 
                         assert tperm == Permissions.READ_WRITE || perm == Permissions.READ_ONLY;
                         if(tperm == Permissions.READ_WRITE) {
-                            lock.release();
                             return false;
                         }
                         else {
-
                             addLock(tid, pid, perm);
-                            lock.release();
                             return true;
                         }
                     }
                 }
             }
- 
-            
+
+
         }
 
         private void removeLock(TransactionId tid, PageId pid) {
@@ -524,24 +505,16 @@ public class BufferPool {
 
         private void releasePage(TransactionId tid, PageId pid) {
 
-        	try {
-                lock.acquire();
-            }
-            catch (InterruptedException e) {}
             removeLock(tid, pid);
-            lock.release();
         }
 
 
         public void transactionComplete(TransactionId tid) {
 
-        	try {
-                lock.acquire();
-            }
-            catch (InterruptedException e) {}
             if (tidMap.containsKey(tid)){
                 Map<PageId, Permissions> map = tidMap.get(tid);
                 for (PageId pid : map.keySet()) {
+
                     if (pidMap.containsKey(pid)){
                         Map<TransactionId, Permissions> tmap = pidMap.get(pid);
                         if (tmap.containsKey(tid)) tmap.remove(tid);
@@ -549,7 +522,6 @@ public class BufferPool {
                 }
                 tidMap.remove(tid);
             }
-            lock.release();
         }
 
 
