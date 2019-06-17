@@ -6,7 +6,7 @@ Honghao Lin, 516030910579, Honghao_lin@sjtu.edu.cn
 
 Design Decisions
 
-In this lab, I use the page granularity locks, and, in concrete, I have set 2 maps to record the locks in tid, pid and permission, 
+In this lab, I used the page granularity locks, and, in concrete, I have set 2 maps to record the locks in tid, pid and permission, 
 not explicit implement shared and exclusive locks, but record the permissions of the lock and then use it to tell the kind of the 
 lock. For the dead-locking detect policy, actually, I have implemented a dead-locking detect policy by detect cycle in the dependency
 graph, but unfortunately, there are stillsome bugs I can not solve. So finally, I used the time-out policy.
